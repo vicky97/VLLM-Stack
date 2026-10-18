@@ -29,5 +29,37 @@ module "eks" {
       max_size       = 1
       desired_size   = 1
     }
+
+    gpu = {
+      ami_type       = "AL2023_x86_64_NVIDIA"
+      instance_types = ["g6.2xlarge"]
+      capacity_type  = var.gpu_capacity_type
+      min_size       = 0
+      max_size       = 2
+      desired_size   = var.gpu_node_count
+      subnet_ids     = [module.vpc.private_subnets[0]]
+
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size = 100
+            volume_type = "gp3"
+          }
+        }
+      }
+
+      labels = {
+        workload = "inference"
+      }
+
+      taints = {
+        gpu = {
+          key    = "nvidia.com/gpu"
+          value  = "true"
+          effect = "NO_SCHEDULE"
+        }
+      }
+    }
   }
 }

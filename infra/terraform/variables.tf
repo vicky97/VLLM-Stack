@@ -22,3 +22,18 @@ variable "my_ip" {
   type        = string
   description = "Your public IP, allowed to reach the EKS API"
 }
+
+variable "gpu_capacity_type" {
+  type    = string
+  default = "SPOT"
+
+  validation {
+    condition     = contains(["SPOT", "ON_DEMAND"], var.gpu_capacity_type)
+    error_message = "gpu_capacity_type must be SPOT or ON_DEMAND."
+  }
+}
+
+variable "gpu_node_count" {
+  type    = number
+  default = 0
+}
