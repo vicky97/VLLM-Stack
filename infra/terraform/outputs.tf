@@ -19,3 +19,7 @@ output "public_subnets" {
 output "cluster_name" {
   value = module.eks.cluster_name
 }
+
+output "efs_id" {
+  value = aws_efs_file_system.models.id
+}
