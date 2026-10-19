@@ -19,6 +19,20 @@ module "eks" {
     kube-proxy             = {}
     vpc-cni                = { before_compute = true }
     eks-pod-identity-agent = { before_compute = true }
+
+    aws-ebs-csi-driver = {
+      pod_identity_association = [{
+        role_arn        = aws_iam_role.ebs_csi.arn
+        service_account = "ebs-csi-controller-sa"
+      }]
+    }
+
+    aws-efs-csi-driver = {
+      pod_identity_association = [{
+        role_arn        = aws_iam_role.efs_csi.arn
+        service_account = "efs-csi-controller-sa"
+      }]
+    }
   }
 
   eks_managed_node_groups = {
