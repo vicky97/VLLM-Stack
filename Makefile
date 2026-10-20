@@ -60,6 +60,7 @@ gpu-off: check-account _need-gpu-group ## Scale GPU nodes to zero
 
 down: check-account ## Safe teardown: refuses if PVCs or load balancers remain
 	@kubectl get ns >/dev/null 2>&1 || { echo "Cannot reach the cluster, so I cannot check for leftovers. Try 'make up' (refreshes your IP) or 'make kubeconfig'."; exit 1; }
+	@$(MAKE) --no-print-directory _clean-apps
 	@pvcs=$$(kubectl get pvc -A --no-headers | wc -l | tr -d ' '); \
 	lbs=$$(kubectl get svc -A --no-headers | grep -c LoadBalancer || true); \
 	if [ "$$pvcs" != "0" ] || [ "$$lbs" != "0" ]; then \
@@ -98,3 +99,14 @@ secrets: check-account ## Create the out-of-band Secrets (Grafana, Hugging Face,
 	@if [ -s "$(HF_TOKEN_FILE)" ]; then kubectl -n llm create secret generic hf-token --from-literal=token="$$(tr -d '[:space:]' < $(HF_TOKEN_FILE))" --dry-run=client -o yaml | kubectl apply -f -; else echo "WARNING: no token file at $(HF_TOKEN_FILE), skipping hf-token (needed for Phase 3)"; fi
 	@kubectl get secret grafana-admin -n monitoring
 	@kubectl get secrets -n llm
+
+.PHONY: _clean-apps
+_clean-apps:
+	@printf "This deletes every Argo CD app and every PVC in monitoring and llm, then destroys the cluster. Type yes to continue: "; read ans; [ "$$ans" = "yes" ] || { echo "Aborted."; exit 1; }
+	@if kubectl get crd applications.argoproj.io >/dev/null 2>&1; then \
+		kubectl -n argocd delete application root --ignore-not-found; \
+		kubectl -n argocd delete applications --all --ignore-not-found --timeout=300s; \
+	fi
+	@for ns in monitoring llm; do \
+		kubectl delete pvc --all -n $$ns --ignore-not-found --timeout=180s; \
+	done
