@@ -29,11 +29,12 @@ _need-gpu-group:
 plan: check-account ## Terraform plan using your current IP
 	terraform -chdir=$(TF_DIR) plan -var "my_ip=$$(curl -s https://checkip.amazonaws.com)"
 
-up: check-account ## Build or update everything, then set up kubectl and storage
+up: check-account ## Build or update everything, then set up kubectl and storage and argo CD
 	terraform -chdir=$(TF_DIR) init -input=false
 	terraform -chdir=$(TF_DIR) apply -var "my_ip=$$(curl -s https://checkip.amazonaws.com)"
 	$(MAKE) kubeconfig
 	$(MAKE) storage
+	$(MAKE) argocd
 
 kubeconfig: ## Point kubectl at the current cluster
 	aws eks update-kubeconfig --name $(CLUSTER) --region $(REGION) --profile $(PROFILE)
@@ -71,3 +72,15 @@ leftovers: check-account ## List volumes, NAT gateways and clusters still in the
 	aws ec2 describe-volumes --region $(REGION) --query "Volumes[].[VolumeId,State,Size]" --output table
 	aws ec2 describe-nat-gateways --region $(REGION) --filter Name=state,Values=available --query "NatGateways[].NatGatewayId" --output table
 	aws eks list-clusters --region $(REGION)
+
+ARGO_CHART_VERSION ?= 10.4.1
+REPO_URL ?= git@github.com:vicky97/VLLM-Stack.git
+ARGO_KEY ?= $(HOME)/.ssh/argocd-llm-lab
+
+.PHONY: argocd
+argocd: check-account ## Install Argo CD, connect the repo, apply the root app
+	helm repo add argo https://argoproj.github.io/argo-helm --force-update
+	helm upgrade --install argocd argo/argo-cd --version $(ARGO_CHART_VERSION) --namespace argocd --create-namespace -f gitops/bootstrap/argocd-values.yaml --wait --timeout 5m
+	kubectl -n argocd create secret generic repo-llm-lab --from-literal=type=git --from-literal=url=$(REPO_URL) --from-file=sshPrivateKey=$(ARGO_KEY) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl -n argocd label secret repo-llm-lab argocd.argoproj.io/secret-type=repository --overwrite
+	kubectl apply -f gitops/bootstrap/root-app.yaml
