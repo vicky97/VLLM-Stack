@@ -34,6 +34,7 @@ up: check-account ## Build or update everything, then set up kubectl and storage
 	terraform -chdir=$(TF_DIR) apply -var "my_ip=$$(curl -s https://checkip.amazonaws.com)"
 	$(MAKE) kubeconfig
 	$(MAKE) storage
+	$(MAKE) secrets
 	$(MAKE) argocd
 
 kubeconfig: ## Point kubectl at the current cluster
@@ -84,3 +85,16 @@ argocd: check-account ## Install Argo CD, connect the repo, apply the root app
 	kubectl -n argocd create secret generic repo-llm-lab --from-literal=type=git --from-literal=url=$(REPO_URL) --from-file=sshPrivateKey=$(ARGO_KEY) --dry-run=client -o yaml | kubectl apply -f -
 	kubectl -n argocd label secret repo-llm-lab argocd.argoproj.io/secret-type=repository --overwrite
 	kubectl apply -f gitops/bootstrap/root-app.yaml
+
+HF_TOKEN_FILE ?= $(HOME)/.config/llm-lab/hf-token
+
+.PHONY: secrets
+secrets: check-account ## Create the out-of-band Secrets (Grafana, Hugging Face, LiteLLM, Postgres)
+	@kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl create namespace llm --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl -n monitoring get secret grafana-admin >/dev/null 2>&1 || kubectl -n monitoring create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password="$$(openssl rand -base64 18)"
+	@kubectl -n llm get secret litellm-master-key >/dev/null 2>&1 || kubectl -n llm create secret generic litellm-master-key --from-literal=master-key="sk-$$(openssl rand -hex 24)"
+	@kubectl -n llm get secret postgres-credentials >/dev/null 2>&1 || kubectl -n llm create secret generic postgres-credentials --type=kubernetes.io/basic-auth --from-literal=username=litellm --from-literal=password="$$(openssl rand -hex 16)"
+	@if [ -s "$(HF_TOKEN_FILE)" ]; then kubectl -n llm create secret generic hf-token --from-literal=token="$$(tr -d '[:space:]' < $(HF_TOKEN_FILE))" --dry-run=client -o yaml | kubectl apply -f -; else echo "WARNING: no token file at $(HF_TOKEN_FILE), skipping hf-token (needed for Phase 3)"; fi
+	@kubectl get secret grafana-admin -n monitoring
+	@kubectl get secrets -n llm
