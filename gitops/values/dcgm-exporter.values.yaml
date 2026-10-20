@@ -1,0 +1,8 @@
+nodeSelector:
+  workload: inference
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+serviceMonitor:
+  enabled: true
