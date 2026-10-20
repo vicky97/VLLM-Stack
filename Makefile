@@ -10,7 +10,7 @@ SC_DIR  := gitops/platform/storageclasses
 
 export AWS_PROFILE := $(PROFILE)
 
-GPU_NG = $(shell aws eks list-nodegroups --cluster-name $(CLUSTER) --region $(REGION) --query "nodegroups[?starts_with(@, 'gpu')] | [0]" --output text 2>/dev/null)
+GPU_NG = $(shell aws eks list-nodegroups --cluster-name $(CLUSTER) --region $(REGION) --profile $(PROFILE) --query "nodegroups[?starts_with(@, 'gpu')] | [0]" --output text 2>/dev/null)
 
 .DEFAULT_GOAL := help
 .PHONY: help check-account _need-gpu-group plan up kubeconfig storage status gpu-on gpu-off down leftovers
