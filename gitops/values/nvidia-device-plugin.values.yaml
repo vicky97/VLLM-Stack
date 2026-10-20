@@ -1,0 +1,11 @@
+affinity: null
+nodeSelector:
+  workload: inference
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+nfd:
+  enabled: false
+gfd:
+  enabled: false
