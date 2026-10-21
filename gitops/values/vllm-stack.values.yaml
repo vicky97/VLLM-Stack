@@ -31,3 +31,7 @@ servingEngineSpec:
     workload: inference
 routerSpec:
   routingLogic: roundrobin
+  startupProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    failureThreshold: 30
