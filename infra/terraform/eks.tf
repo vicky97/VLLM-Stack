@@ -42,6 +42,18 @@ module "eks" {
       min_size       = 1
       max_size       = 1
       desired_size   = 1
+      subnet_ids     = [module.vpc.private_subnets[0]]
+
+
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size = 50
+            volume_type = "gp3"
+          }
+        }
+      }
     }
 
     gpu = {
