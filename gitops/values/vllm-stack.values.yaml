@@ -1,6 +1,8 @@
 servingEngineSpec:
   runtimeClassName: ''
   imagePullPolicy: IfNotPresent
+  strategy:
+    type: Recreate
   modelSpec:
     - name: qwen-7b
       repository: vllm/vllm-openai
@@ -39,7 +41,6 @@ routerSpec:
   repository: lmcache/lmstack-router
   tag: v0.1.13
   imagePullPolicy: IfNotPresent
-
   startupProbe:
     initialDelaySeconds: 10
     periodSeconds: 10
